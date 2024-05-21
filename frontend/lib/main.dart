@@ -1,4 +1,16 @@
-import 'package:flutter/material.dart';
+import "package:flutter/material.dart";
+import "package:flutter_osm_plugin/flutter_osm_plugin.dart";
+import "dart:io";
+import "dart:async";
+import "dart:convert";
+import "package:shared_preferences/shared_preferences.dart";
+
+import "backend.dart";
+import "user.dart";
+import "networks.dart";
+import "leaderboard.dart";
+import "achievements.dart";
+import "discussion.dart";
 
 void main() {
     runApp(const MyApp());
@@ -13,26 +25,135 @@ class MyApp extends StatelessWidget {
         return MaterialApp(
             title: 'WiFi Wardriving',
             theme: ThemeData(
-                // This is the theme of your application.
-                //
-                // TRY THIS: Try running your application with "flutter run". You'll see
-                // the application has a purple toolbar. Then, without quitting the app,
-                // try changing the seedColor in the colorScheme below to Colors.green
-                // and then invoke "hot reload" (save your changes or press the "hot
-                // reload" button in a Flutter-supported IDE, or press "r" if you used
-                // the command line to start the app).
-                //
-                // Notice that the counter didn't reset back to zero; the application
-                // state is not lost during the reload. To reset the state, use hot
-                // restart instead.
-                //
-                // This works for code too, not just values: Most code changes can be
-                // tested with just a hot reload.
-                colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+                colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepOrange),
+                primaryColorDark: Colors.black54,
                 useMaterial3: true,
             ),
             home: const MyHomePage(title: 'WiFi Wardriving'),
         );
+    }
+}
+
+class AccountElement extends StatefulWidget {
+    const AccountElement({super.key});
+
+    @override
+    State<AccountElement> createState() => _AccountElementState();
+}
+
+class _AccountElementState extends State<AccountElement> {
+    @override
+    Widget build(BuildContext context) {
+        return FutureBuilder<Widget>(
+            future: asyncBuild(context),
+            builder: (BuildContext context, AsyncSnapshot<Widget> snapshot) {
+                if (snapshot.hasData) return snapshot.data!;
+                return const CircularProgressIndicator(value: null);
+            }
+        );
+    }
+
+    Future<Widget> asyncBuild(BuildContext context) async {
+        if (!await Backend().isLoggedIn(ScaffoldMessenger.of(context))) {
+            return ListView(
+                shrinkWrap: true,
+                children: <Widget>[
+                    ListTile(
+                        title: const Text("Account"),
+                        onTap: () async {
+                            final nav = Navigator.of(context);
+                            nav.pop();
+                            await nav.push(MaterialPageRoute(builder: (context) => const LoginPage()));
+                            setState(() {});
+                        },
+                        leading: const Icon(Icons.switch_account)
+                    ),
+                    ListTile(
+                        title: const Text("Leaderboard"),
+                        onTap: () async {
+                            final nav = Navigator.of(context);
+                            nav.pop();
+                            await nav.push(MaterialPageRoute(builder: (context) => const LeaderboardPage()));
+                            setState(() {});
+                        },
+                        leading: const Icon(Icons.leaderboard)
+                    ),
+                    ListTile(
+                        title: const Text("Achievements"),
+                        onTap: () async {
+                            final nav = Navigator.of(context);
+                            nav.pop();
+                            await nav.push(MaterialPageRoute(builder: (context) => const AchievementPage()));
+                            setState(() {});
+                        },
+                        leading: const Icon(Icons.checklist)
+                    ),
+                    ListTile(
+                        title: const Text("Discussion"),
+                        onTap: () async {
+                            final nav = Navigator.of(context);
+                            nav.pop();
+                            await nav.push(MaterialPageRoute(builder: (context) => const DiscussionPage(1)));
+                            setState(() {});
+                        },
+                        leading: const Icon(Icons.comment)
+                    )
+                ]
+            );
+        }
+        else
+        {
+            return ListView(
+                shrinkWrap: true,
+                children: <Widget>[
+                    ListTile(
+                        title: const Text("Account"),
+                        subtitle: Text(Backend().username!),
+                        leading: const Icon(Icons.switch_account)
+                    ),
+                    ListTile(
+                        title: const Text("Logout"),
+                        onTap: () async {
+                            final nav = Navigator.of(context);
+                            nav.pop();
+                            await Backend().logoutAccount(ScaffoldMessenger.of(context));
+                            setState(() {});
+                        },
+                        leading: const Icon(Icons.logout)
+                    ),
+                    ListTile(
+                        title: const Text("Leaderboard"),
+                        onTap: () async {
+                            final nav = Navigator.of(context);
+                            nav.pop();
+                            await nav.push(MaterialPageRoute(builder: (context) => const LeaderboardPage()));
+                            setState(() {});
+                        },
+                        leading: const Icon(Icons.leaderboard)
+                    ),
+                    ListTile(
+                        title: const Text("Achievements"),
+                        onTap: () async {
+                            final nav = Navigator.of(context);
+                            nav.pop();
+                            await nav.push(MaterialPageRoute(builder: (context) => const AchievementPage()));
+                            setState(() {});
+                        },
+                        leading: const Icon(Icons.checklist)
+                    ),
+                    ListTile(
+                        title: const Text("Discussion"),
+                        onTap: () async {
+                            final nav = Navigator.of(context);
+                            nav.pop();
+                            await nav.push(MaterialPageRoute(builder: (context) => const DiscussionPage(1)));
+                            setState(() {});
+                        },
+                        leading: const Icon(Icons.comment)
+                    )
+                ]
+            );
+        }
     }
 }
 
@@ -55,71 +176,121 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-    int _counter = 0;
+    MapController _mapController;
 
-    void _incrementCounter() {
-        setState(() {
-            // This call to setState tells the Flutter framework that something has
-            // changed in this State, which causes it to rerun the build method below
-            // so that the display can reflect the updated values. If we changed
-            // _counter without calling setState(), then the build method would not be
-            // called again, and so nothing would appear to happen.
-            _counter++;
+    _MyHomePageState()
+    : _mapController = MapController(
+        initPosition: GeoPoint(latitude: 51.10967, longitude: 17.05977),
+        areaLimit: BoundingBox(
+            east: 10,
+            north: 10,
+            west: 10,
+            south: 10
+        )
+    ) {
+       Backend().changeAccount.listen((username) {
+           print("change acc $username");
+           setState(() {});
         });
     }
 
     @override
+    void dispose() {
+        super.dispose();
+        _mapController.dispose();
+    }
+
+    @override
     Widget build(BuildContext context) {
-        // This method is rerun every time setState is called, for instance as done
-        // by the _incrementCounter method above.
-        //
-        // The Flutter framework has been optimized to make rerunning build methods
-        // fast, so that you can just rebuild anything that needs updating rather
-        // than having to individually change instances of widgets.
+        return FutureBuilder<Widget>(
+            future: asyncBuild(context),
+            builder: (BuildContext context, AsyncSnapshot<Widget> snapshot) {
+                if (snapshot.hasData) return snapshot.data!;
+                return const CircularProgressIndicator(value: null);
+            }
+        );
+    }
+
+    Future<Widget> asyncBuild(BuildContext context) async {
+        final floatingButtonWidgets = <Widget>[
+            FloatingActionButton(
+                onPressed: () async {
+                   await _mapController.currentLocation();
+                },
+                tooltip: 'My location',
+                child: const Icon(Icons.my_location)
+            ),
+        ];
+
+        if (await Backend().isLoggedIn(ScaffoldMessenger.of(context))) {
+            floatingButtonWidgets.insert(0, FloatingActionButton(
+                tooltip: "Add networks",
+                child: const Icon(Icons.add),
+                onPressed: () async {
+                    print("opennet");
+                    final nav = Navigator.of(context);
+                    await nav.push(MaterialPageRoute(builder: (context) => const NetworksPage()));
+                    setState(() {});
+                },
+            ));
+        }
+
         return Scaffold(
             appBar: AppBar(
-                // TRY THIS: Try changing the color here to a specific color (to
-                // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-                // change color while the other colors stay the same.
-                backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-                // Here we take the value from the MyHomePage object that was created by
-                // the App.build method, and use it to set our appbar title.
+                backgroundColor: Colors.deepOrange,
                 title: Text(widget.title),
             ),
             body: Center(
-                // Center is a layout widget. It takes a single child and positions it
-                // in the middle of the parent.
-                child: Column(
-                    // Column is also a layout widget. It takes a list of children and
-                    // arranges them vertically. By default, it sizes itself to fit its
-                    // children horizontally, and tries to be as tall as its parent.
-                    //
-                    // Column has various properties to control how it sizes itself and
-                    // how it positions its children. Here we use mainAxisAlignment to
-                    // center the children vertically; the main axis here is the vertical
-                    // axis because Columns are vertical (the cross axis would be
-                    // horizontal).
-                    //
-                    // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-                    // action in the IDE, or press "p" in the console), to see the
-                    // wireframe for each widget.
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: <Widget>[
-                        const Text(
-                            'You have pushed the button this many times:',
+                child: OSMFlutter(
+                    controller: _mapController,
+                    osmOption: OSMOption(
+                        userTrackingOption: const UserTrackingOption(enableTracking: true, unFollowUser: false),
+                        zoomOption: const ZoomOption(
+                            initZoom: 16,
+                            minZoomLevel: 3,
+                            maxZoomLevel: 19,
+                            stepZoom: 1.0
                         ),
-                        Text(
-                            '$_counter',
-                            style: Theme.of(context).textTheme.headlineMedium,
+                        userLocationMarker: UserLocationMaker(
+                            personMarker: const MarkerIcon(
+                                icon: Icon(
+                                    Icons.location_pin,
+                                    color: Colors.deepOrange,
+                                    size: 128,
+                                ),
+                            ),
+                            directionArrowMarker: const MarkerIcon(
+                                icon: Icon(
+                                    Icons.double_arrow,
+                                    color: Colors.deepOrange,
+                                    size: 128,
+                                ),
+                            ),
                         ),
-                    ],
+                    ),
                 ),
             ),
-            floatingActionButton: FloatingActionButton(
-                onPressed: _incrementCounter,
-                tooltip: 'Increment',
-                child: const Icon(Icons.add),
-            ), // This trailing comma makes auto-formatting nicer for build methods.
+            drawer: Drawer(
+                child: ListView(
+                    padding: EdgeInsets.zero,
+                    children: <Widget>[
+                        const SizedBox(
+                            height: 100.0,
+                            child: DrawerHeader(
+                                margin: EdgeInsets.zero,
+                                child: Text("WiFi Wardriving")
+                            ),
+                        ),
+                        AccountElement()
+                    ]
+                )
+            ),
+            floatingActionButton: Align(
+                alignment: Alignment.bottomRight,
+                child: Wrap(
+                spacing: 5,
+                children: floatingButtonWidgets
+            ))
         );
     }
 }
