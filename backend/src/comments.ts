@@ -1,5 +1,6 @@
 import pg from "pg";
 import * as rest from "./rest";
+import * as engagement from "./engagement";
 import session from "express-session";
 
 export enum AuthType
@@ -53,6 +54,7 @@ export async function submitComment(db : pg.PoolClient, sessionData : session.Se
 
     let commentId = result.rows[0].comment_id;
 
+    await engagement.checkAndGrantAchievementsFor(db, sessionData.userId);
     return new rest.Response(200, { "comment_id": commentId, "submitter_id": sessionData.userId, "datapoint_id": req.datapoint_id });
 }
 

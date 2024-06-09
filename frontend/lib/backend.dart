@@ -1,5 +1,6 @@
 import "package:flutter/material.dart";
 import "package:shared_preferences/shared_preferences.dart";
+import 'package:latlong2/latlong.dart';
 import "dart:io";
 import "dart:async";
 import "dart:convert";
@@ -27,6 +28,21 @@ class UserData {
     String toString() {
         return "[$id] $username";
     }
+}
+
+class Datapoint {
+    final LatLng position;
+    final String bssid;
+    final String ssid;
+    final String authType;
+    final int submitterId;
+
+    Datapoint(dynamic jsonData)
+    : position = LatLng(jsonData["latitude"], jsonData["longitude"])
+    , bssid = jsonData["bssid"]
+    , ssid = jsonData["ssid"]
+    , authType = jsonData["auth_type"]
+    , submitterId = jsonData["submitter"];
 }
 
 class Backend {
@@ -85,11 +101,12 @@ class Backend {
         return cookie;
     }
 
-    Future<Map<String, dynamic>?> doGet(ScaffoldMessengerState msgr, String resource, { bool requireSession = false }) async {
+    Future<dynamic> doGet(ScaffoldMessengerState msgr, String resource, { bool requireSession = false }) async {
         final sessionCookie = await retrieveSessionCookie(msgr);
         if (sessionCookie == null && requireSession) return null;
 
         final client = HttpClient();
+        print("get: ${url(resource)}");
         final req = await client.getUrl(url(resource));
         if (sessionCookie != null) req.cookies.add(Cookie(SESSION_COOKIE_NAME, sessionCookie));
         req.headers.set(HttpHeaders.contentTypeHeader, "application/json");
@@ -146,10 +163,40 @@ class Backend {
         return data;
     }
 
+    Future<Map<String, dynamic>?> doDelete(ScaffoldMessengerState msgr, String resource, {bool setsSessionCookie = false}) async {
+        final client = HttpClient();
+        final req = await client.deleteUrl(url(resource));
+        final sessionCookie = await retrieveSessionCookie(msgr);
+        if (sessionCookie != null) {
+            req.cookies.add(Cookie(SESSION_COOKIE_NAME, sessionCookie));
+        }
+        final res = await req.close();
+
+        final dynamic data = await res.transform(utf8.decoder).transform(json.decoder).first;
+        if (res.statusCode != 200) {
+            if (data != null) {
+                final message = data?["message"];
+                if (message != null) {
+                    sendError(msgr, message.toString());
+                    return null;
+                }
+            }
+
+            sendError(msgr, "server replied with unexpected status code ${res.statusCode}");
+            return null;
+        }
+
+        if (setsSessionCookie) {
+            storeSessionCookie(msgr, res);
+        }
+
+        return data;
+    }
+
     Future<bool> ensureUserDataRetrieved(ScaffoldMessengerState msgr) async {
         if (username != null) return true;
 
-        final data = await doGet(msgr, "me", requireSession: true);
+        final data = await doGet(msgr, "users/session", requireSession: true);
         if (data == null) return false;
 
         username = data["username"].toString();
@@ -167,7 +214,7 @@ class Backend {
             return false;
         }
 
-        final data = await doPost(msgr, "register", { "username": username, "password": password, "remember_me": rememberMe }, setsSessionCookie: true );
+        final data = await doPost(msgr, "users", { "username": username, "password": password, "remember_me": rememberMe }, setsSessionCookie: true );
         if (data == null) return false;
 
         userId = data["user_id"];
@@ -183,7 +230,7 @@ class Backend {
             return false;
         }
 
-        final data = await doPost(msgr, "login", { "username": username, "password": password, "remember_me": rememberMe }, setsSessionCookie: true );
+        final data = await doPost(msgr, "users/$username", { "password": password, "remember_me": rememberMe }, setsSessionCookie: true );
         if (data == null) return false;
 
         userId = data["user_id"];
@@ -200,7 +247,7 @@ class Backend {
             return false;
         }
 
-        final data = await doPost(msgr, "logout", {});
+        final data = await doDelete(msgr, "users/session");
         if (data == null) return false;
 
         await clearSessionCookie(msgr);
@@ -212,14 +259,14 @@ class Backend {
     }
 
     Future<UserData?> userData(ScaffoldMessengerState msgr, int userId) async {
-        final data = await doGet(msgr, "user?user_id=$userId");
+        final data = await doGet(msgr, "users/$userId");
         if (data == null) return null;
 
         return UserData(userId, data["username"]);
     }
 
     Future<List<Comment>?> retrieveAllComments(ScaffoldMessengerState msgr, int datapointId) async {
-        final data = await doGet(msgr, "comments?datapoint_id=$datapointId");
+        final data = await doGet(msgr, "datapoints/$datapointId/comments");
         if (data == null) return null;
 
         final List<Comment> commentsList = [];
@@ -228,6 +275,18 @@ class Backend {
         }
 
         return commentsList;
+    }
+
+    Future<List<Datapoint>?> retrieveDatapoints(ScaffoldMessengerState msgr, LatLng center) async {
+        final data = await doGet(msgr, "datapoints/${center.latitude}/${center.longitude}");
+        if (data == null) return null;
+
+        final List<Datapoint> datapointsList = [];
+        for (final datapoint in data) {
+            datapointsList.add(Datapoint(datapoint));
+        }
+
+        return datapointsList;
     }
 }
 

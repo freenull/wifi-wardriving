@@ -142,7 +142,7 @@ export async function myUserData(db : pg.PoolClient, sessionData : session.Sessi
 
     let username = result.rows[0].username;
     
-    return new rest.Response(200, { "username": username });
+    return new rest.Response(200, { "user_id": sessionData.userId, "username": username });
 }
 
 export async function userData(db : pg.PoolClient, sessionData : session.SessionData, req : UserDataRequest) : Promise<rest.Response>

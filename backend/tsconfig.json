@@ -7,5 +7,6 @@
     "sourceMap": true,
     "outDir": "dist"
   },
+  "removeComments": false,
   "lib": ["es2022"]
 }

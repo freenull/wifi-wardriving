@@ -5,7 +5,9 @@ export enum ErrorCode
     InvalidCredentials = 2,
     LoginOnly = 3,
     DbFail = 4,
-    NoLoginOnly = 5
+    NoLoginOnly = 5,
+    InvalidAuthType = 6,
+    InvalidDatapointId = 7
 }
 
 export class Response

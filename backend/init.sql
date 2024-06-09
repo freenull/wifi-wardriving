@@ -22,6 +22,7 @@ create table datapoints (
     latitude double precision not null,
     longitude double precision not null,
 
+    bssid macaddr not null,
     ssid text not null,
     auth_type varchar(32) not null,
 
@@ -37,15 +38,28 @@ create table comments (
     comment_id serial primary key,
     content text not null,
 
-    submitter int,
+    submitter int not null,
     constraint fk_submitter
         foreign key (submitter)
         references users(user_id),
         
-    datapoint int,
+    datapoint int not null,
     constraint fk_datapoint
         foreign key (datapoint)
         references datapoints(datapoint_id)
+);
+create table achievements (
+    achievement_id serial primary key,
+
+    recipient int not null,
+    constraint fk_recipient
+        foreign key (recipient)
+        references users(user_id),
+
+    key text not null,
+    unlock_time timestamp with time zone not null,
+
+    unique (recipient, key)
 );
 
 drop table if exists session;
