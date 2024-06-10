@@ -95,29 +95,39 @@ class _AchievementListState extends State<AchievementList> {
         );
     }
 
-    ListTile achievementEntry(bool locked, String file, String description, String? whenUnlocked) {
+    ListTile achievementEntry(Map<String, Achievement> achiev, String key, String file, String description) {
+        var unlocked = achiev.containsKey(key);
+
         return ListTile(
-            leading: locked ? assetImage("assets/lock.png") : assetImage("assets/$file.png"),
+            leading: unlocked ? assetImage("assets/$file.png") : assetImage("assets/lock.png"),
             title: Text(description),
-            subtitle: whenUnlocked == null ? null : Text("Unlocked: $whenUnlocked")
+            subtitle: unlocked ? Text("Unlocked: ${achiev[key]!.unlockTime}") : null
         );
     }
 
     Future<Widget> asyncBuild(BuildContext context) async {
         final achievementEntries = <Widget>[];
+        final achievements = await Backend().retrieveOwnAchievements(ScaffoldMessenger.of(context));
+        var achievementMap = Map<String, Achievement>();
 
-        achievementEntries.add(achievementEntry(false, "1-comment", "Comment on a submitted network", "13.05.2024 14:20:42"));
+        if (achievements != null) {
+            for (var achiev in achievements) {
+                achievementMap[achiev.key] = achiev;
+            }
+        }
+
+        achievementEntries.add(achievementEntry(achievementMap, "comments_1", "1-comment", "Comment on a submitted network"));
         achievementEntries.add(const SizedBox(height: 10));
-        achievementEntries.add(achievementEntry(false, "10-comment", "Comment on 10 submitted networks", "13.05.2024 17:48:44"));
+        achievementEntries.add(achievementEntry(achievementMap, "comments_10", "10-comment", "Comment on 10 submitted networks"));
         achievementEntries.add(const SizedBox(height: 10));
-        achievementEntries.add(achievementEntry(true, "100-comment", "Comment on 100 submitted networks", null));
+        achievementEntries.add(achievementEntry(achievementMap, "comments_100", "100-comment", "Comment on 100 submitted networks"));
         achievementEntries.add(const SizedBox(height: 10));
 
-        achievementEntries.add(achievementEntry(false, "1-network", "Submit a network", "13.05.2024 13:05:33"));
+        achievementEntries.add(achievementEntry(achievementMap, "networks_1", "1-network", "Submit a network"));
         achievementEntries.add(const SizedBox(height: 10));
-        achievementEntries.add(achievementEntry(true, "10-network", "Submit 10 networks", null));
+        achievementEntries.add(achievementEntry(achievementMap, "networks_10", "10-network", "Submit 10 networks"));
         achievementEntries.add(const SizedBox(height: 10));
-        achievementEntries.add(achievementEntry(true, "100-network", "Submit 100 networks", null));
+        achievementEntries.add(achievementEntry(achievementMap, "networks_100", "100-network", "Submit 100 networks"));
 
         return Column(children: [
             ListView(physics: NeverScrollableScrollPhysics(), shrinkWrap: true, children: achievementEntries)

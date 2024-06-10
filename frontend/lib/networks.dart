@@ -2,16 +2,48 @@ import "package:flutter/material.dart";
 import "package:flutter/widgets.dart";
 import "package:wifi_scan/wifi_scan.dart";
 import "package:flutter_map/flutter_map.dart";
+import 'package:latlong2/latlong.dart';
+import 'package:geolocator/geolocator.dart';
 // import "package:flutter_osm_plugin/flutter_osm_plugin.dart";
 import "main.dart";
+import "backend.dart";
+
+class ToggleableAccessPoint {
+    WiFiAccessPoint ap;
+    bool enabled;
+
+    ToggleableAccessPoint(WiFiAccessPoint ap)
+    : this.ap = ap
+    , enabled = true;
+}
+
+class WardrivingDatapointMarker extends Marker {
+    List<Datapoint> datapoints;
+
+    WardrivingDatapointMarker(LatLng point, Widget child)
+    : this.datapoints = []
+    , super(point: point, child: child);
+}
 
 class NetworksPage extends StatelessWidget {
   NetworksPage(MapController mapController, {super.key})
     : accessPoints = []
     , mapController = mapController;
 
-  final List<WiFiAccessPoint> accessPoints;
+  final List<ToggleableAccessPoint> accessPoints;
   final MapController mapController;
+
+  static String accessPointAuthType(WiFiAccessPoint ap) {
+    if (ap.capabilities.contains("[WPA2-")) return "wpa2";
+    if (ap.capabilities.contains("[WPA-")) return "wpa";
+    if (ap.capabilities.contains("[WEP-")) return "wep";
+    return "none";
+  }
+
+  static Datapoint accessPointToDatapoint(LatLng position, WiFiAccessPoint ap) {
+      print("caps for ${ap.ssid} (${ap.bssid}): ${ap.capabilities}");
+    return Datapoint(position, ap.bssid, ap.ssid, accessPointAuthType(ap));
+  }
 
   // This widget is the root of your application.
   @override
@@ -36,8 +68,16 @@ class NetworksPage extends StatelessWidget {
                     // print("lat: ${pos.latitude}");
                     // print("long: ${pos.longitude}");
                     for (var ap in accessPoints) {
-                        print(ap.ssid);
+                        if (!ap.enabled) continue;
+
+                        var currentPosition = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+                        await Backend().sendDatapoint(
+                            ScaffoldMessenger.of(context),
+                            accessPointToDatapoint(LatLng(currentPosition.latitude, currentPosition.longitude), ap.ap)
+                        );
                     }
+
+                    Navigator.of(context).pop();
                   },
                   style: ElevatedButton.styleFrom( 
                       backgroundColor: Theme.of(context).primaryColor,
@@ -54,7 +94,7 @@ class NetworksPage extends StatelessWidget {
 
 
 class NetworksList extends StatefulWidget {
-    final List<WiFiAccessPoint> _accessPoints;
+    final List<ToggleableAccessPoint> _accessPoints;
     const NetworksList(this._accessPoints, {super.key});
 
     @override
@@ -62,7 +102,7 @@ class NetworksList extends StatefulWidget {
 }
 
 class _NetworksListState extends State<NetworksList> {
-    List<WiFiAccessPoint>? _accessPoints = null;
+    List<ToggleableAccessPoint>? _accessPoints = null;
 
     _NetworksListState(this._accessPoints);
 
@@ -88,7 +128,7 @@ class _NetworksListState extends State<NetworksList> {
 
         _accessPoints?.clear();
         for (final ap in newAccessPoints) {
-            _accessPoints?.add(ap);
+            _accessPoints?.add(ToggleableAccessPoint(ap));
         }
 
         return true;
@@ -115,7 +155,7 @@ class _NetworksListState extends State<NetworksList> {
     }
 
     Future<Widget> asyncBuild(BuildContext context) async {
-        await scan();
+        if (_accessPoints?.isEmpty == true) await scan();
         if (_accessPoints?.isEmpty == true) {
             // ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: const Text("Failed loading WiFi networks")));
             Navigator.of(context).pop();
@@ -124,15 +164,18 @@ class _NetworksListState extends State<NetworksList> {
 
         var elems = <Widget>[];
         for (final ap in _accessPoints!) {
-            print(ap.ssid);
-            var caps = parseCapabilities(ap.capabilities);
+            var caps = parseCapabilities(ap.ap.capabilities);
+
             elems.add(Row(
                 children: <Widget>[
-                    Checkbox(value: true, onChanged: (value) {}),
+                    Checkbox(value: ap.enabled, onChanged: (value) {
+                        ap.enabled = !ap.enabled;
+                        setState(() {});
+                    }),
                     Flexible(child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                            Text(ap.ssid),
+                            Text(ap.ap.ssid),
                             Text(caps.join(", ")),
                             // Text("freq: ${ap.frequency}, chan: ${ap.channelWidth}"),
                     ]))

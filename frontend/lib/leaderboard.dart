@@ -104,16 +104,24 @@ class _LeaderboardListState extends State<LeaderboardList> {
     }
 
     Future<Widget> asyncBuild(BuildContext context) async {
-        final leaderboardEntries = <Widget>[];
+        var leaderboardEntries = await Backend().retrieveLeaderboard(ScaffoldMessenger.of(context), 10);
 
-        leaderboardEntries.add(leaderboardEntry(1, "foo", 7));
-        leaderboardEntries.add(const SizedBox(height: 10));
+        final widgets = <Widget>[];
 
-        leaderboardEntries.add(leaderboardEntry(2, "user2", 2));
-        leaderboardEntries.add(const SizedBox(height: 10));
+        if (leaderboardEntries != null) {
+            var n = 1;
+            for (var entry in leaderboardEntries) {
+                var userData = await Backend().userData(ScaffoldMessenger.of(context), entry.userId);
+                var username = "<deleted account>";
+                if (userData != null) username = userData.username;
+                widgets.add(leaderboardEntry(n, username, entry.submittedDatapoints));
+                widgets.add(const SizedBox(height: 10));
+                n += 1;
+            }
+        }
 
         return Column(children: [
-            ListView(physics: NeverScrollableScrollPhysics(), shrinkWrap: true, children: leaderboardEntries)
+            ListView(physics: NeverScrollableScrollPhysics(), shrinkWrap: true, children: widgets)
         ]);
     }
 }

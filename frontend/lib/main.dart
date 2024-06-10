@@ -8,7 +8,9 @@ import 'package:latlong2/latlong.dart';
 import "dart:io";
 import "dart:async";
 import "dart:convert";
+import "dart:math";
 import "package:shared_preferences/shared_preferences.dart";
+import 'package:geolocator/geolocator.dart';
 
 import "backend.dart";
 import "user.dart";
@@ -93,16 +95,6 @@ class _AccountElementState extends State<AccountElement> {
                         },
                         leading: const Icon(Icons.checklist)
                     ),
-                    ListTile(
-                        title: const Text("Discussion"),
-                        onTap: () async {
-                            final nav = Navigator.of(context);
-                            nav.pop();
-                            await nav.push(MaterialPageRoute(builder: (context) => const DiscussionPage(1)));
-                            setState(() {});
-                        },
-                        leading: const Icon(Icons.comment)
-                    )
                 ]
             );
         }
@@ -146,16 +138,6 @@ class _AccountElementState extends State<AccountElement> {
                         },
                         leading: const Icon(Icons.checklist)
                     ),
-                    ListTile(
-                        title: const Text("Discussion"),
-                        onTap: () async {
-                            final nav = Navigator.of(context);
-                            nav.pop();
-                            await nav.push(MaterialPageRoute(builder: (context) => const DiscussionPage(1)));
-                            setState(() {});
-                        },
-                        leading: const Icon(Icons.comment)
-                    )
                 ]
             );
         }
@@ -186,9 +168,11 @@ class DatapointMarker extends Marker {
 
 class _MyHomePageState extends State<MyHomePage> {
     MapController _mapController;
+    PopupController _popupController;
 
     _MyHomePageState()
     : _mapController = MapController()
+    , _popupController = PopupController()
     {
        Backend().changeAccount.listen((username) {
            print("change acc $username");
@@ -197,13 +181,15 @@ class _MyHomePageState extends State<MyHomePage> {
     }
 
     late LatLng lastUpdateCenter;
-    final List<Marker> markers = [];
+    final List<WardrivingDatapointMarker> markers = [];
     final StreamController<double?> _alignPositionStreamController = StreamController<double?>();
+    Timer? mapUpdateTimer;
 
     @override
     void dispose() {
         super.dispose();
         _mapController.dispose();
+        mapUpdateTimer?.cancel();
     }
 
     @override
@@ -217,49 +203,53 @@ class _MyHomePageState extends State<MyHomePage> {
         );
     }
 
+    // unit is meters
+    double earthDistance(LatLng point1, LatLng point2){
+        return Geolocator.distanceBetween(point1.latitude, point1.longitude, point2.latitude, point2.longitude);
+    }
+
+    static double MAX_JOIN_DISTANCE = 10;
+
+    void updateMapMarkers() async {
+        var currentPosition = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+        var currentPoint = LatLng(currentPosition.latitude, currentPosition.longitude);
+        Backend().retrieveClusters(ScaffoldMessenger.of(context), currentPoint).then((clusters) {
+            print(clusters?.length);
+            markers.clear();
+
+            if (clusters == null) return;
+            for (var cluster in clusters) {
+                print("cluster ====");
+
+                var marker = WardrivingDatapointMarker(
+                    cluster.position, const Icon(Icons.circle, color: Colors.red)
+                );
+                for (var datapoint in cluster.datapoints) {
+                    print("datapoint: ${datapoint.ssid} ${datapoint.position.latitude}, ${datapoint.position.longitude} (markers: ${markers.length})");
+                    marker.datapoints.add(datapoint);
+                }
+                markers.add(marker);
+            }
+
+            print("center: ${_mapController.center}");
+            print("markers: ${markers.length}");
+
+            for (var marker in markers) {
+                print(marker.point);
+            }
+            lastUpdateCenter = _mapController.center;
+            setState(() {});
+        });
+    }
+
     Future<Widget> asyncBuild(BuildContext context) async {
+        mapUpdateTimer ??= Timer.periodic(const Duration(seconds: 5), (Timer t) => updateMapMarkers());
+
         final floatingButtonWidgets = <Widget>[
             FloatingActionButton(
-                onPressed: () {
+                heroTag: null,
+                onPressed: () async {
                     _alignPositionStreamController.add(null);
-
-                    // markers.add(Marker(
-                    //     point: LatLng(_mapController.center.latitude + 0.01, _mapController.center.longitude + 0.01),
-                    //     child: const Icon(Icons.flag)
-                    // ));
-                    print("center: ${_mapController.center}");
-                    print("markers: ${markers.length}");
-
-                    Backend().retrieveDatapoints(ScaffoldMessenger.of(context), _mapController.center).then((datapoints) {
-                        print(datapoints?.length);
-                        markers.clear();
-                        if (datapoints == null) return;
-                        for (var datapoint in datapoints) {
-                            markers.add(Marker(
-                                point: datapoint.position,
-                                child: const Icon(Icons.star)
-                            ));
-                        }
-                        for (var marker in markers) {
-                            print(marker.point);
-                        }
-                        lastUpdateCenter = _mapController.center;
-                        setState(() {});
-                    });
-
-                    // var loc = await _mapController.myLocation();
-                    // if (lastGeoPoint != null) {
-                    //     await _mapController.removeMarker(lastGeoPoint!);
-                    // } else {
-                    //     await _mapController.addMarker(GeoPoint(latitude: loc.latitude + 0.01, longitude: loc.longitude + 0.01), markerIcon: MarkerIcon(icon: Icon(Icons.flag)));
-                    //     print("add marker $loc");
-                    // }
-                    // await _mapController.addMarker(GeoPoint(latitude: loc.latitude, longitude: loc.longitude), markerIcon: const MarkerIcon(icon: Icon(
-                    //     Icons.location_pin,
-                    //     color: Colors.deepOrange,
-                    //     size: 128
-                    // )));
-
                 },
                 tooltip: 'My location',
                 child: const Icon(Icons.my_location)
@@ -268,6 +258,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
         if (await Backend().isLoggedIn(ScaffoldMessenger.of(context))) { 
             floatingButtonWidgets.insert(0, FloatingActionButton(
+                heroTag: null,
                 tooltip: "Add networks",
                 child: const Icon(Icons.add),
                 onPressed: () async {
@@ -287,36 +278,77 @@ class _MyHomePageState extends State<MyHomePage> {
             body: Center(
                 child: FlutterMap(
                     mapController: _mapController,
-                    options: MapOptions(),
+                    options: MapOptions(
+                        onTap: (pos, latlng) => _popupController.hideAllPopups()
+                    ),
                     children: [
                         TileLayer(
                             urlTemplate: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
                             userAgentPackageName: "org.example.test"
                         ),
+                        CurrentLocationLayer(
+                            alignPositionStream: _alignPositionStreamController.stream,
+                            alignPositionOnUpdate: AlignOnUpdate.once
+                        ),
                         PopupMarkerLayer(options: PopupMarkerLayerOptions(
+                            popupController: _popupController,
                             markers: markers,
                             popupDisplayOptions: PopupDisplayOptions(
                                 builder: (BuildContext context, Marker marker) {
-                                    print("marker: $marker");
+                                    if (marker is! WardrivingDatapointMarker) return const Text("unimplemented");
+
+                                    var datapointMarker = marker as WardrivingDatapointMarker;
+
+                                    var cardChildren = <Widget>[];
+                                    if (datapointMarker.datapoints.length > 1) {
+                                        cardChildren.add(Text("${datapointMarker.datapoints.length} networks"));
+                                    }
+                                    for (var datapoint in datapointMarker.datapoints) {
+                                        var networkName = datapoint.ssid;
+
+                                        for (var otherDatapoint in datapointMarker.datapoints) {
+                                            if (otherDatapoint.ssid == datapoint.ssid && otherDatapoint.bssid != datapoint.bssid) {
+                                                var deviceMac = datapoint.bssid.substring(9).split(":");
+                                                var otherDeviceMac = otherDatapoint.bssid.substring(9).split(":");
+
+                                                var bssidDetail = "";
+                                                if (deviceMac[0] != otherDeviceMac[0]) bssidDetail = deviceMac.join(":");
+                                                else if (deviceMac[1] != otherDeviceMac[1]) bssidDetail = "::${deviceMac[1]}:${deviceMac[2]}";
+                                                else if (deviceMac[2] != otherDeviceMac[2]) bssidDetail = "::${deviceMac[2]}";
+
+                                                networkName = "${datapoint.ssid} (${bssidDetail})";
+                                                break;
+                                            }
+                                        }
+
+                                        cardChildren.add(TextButton.icon(
+                                            icon: Icon(Icons.network_wifi), label: Text(networkName), onPressed: () async {
+                                                await Navigator.of(context).push(MaterialPageRoute(builder: (context) => DiscussionPage(datapoint.id!)));
+                                                setState(() {});
+                                            }
+                                        ));
+                                    }
+
                                     return Card(
                                         child: Padding(
                                             padding: const EdgeInsets.all(10),
-                                            child: Column(
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: [
-                                                    const Text("10 networks"),
-                                                    TextButton.icon(icon: Icon(Icons.comment), label: Text("Comments..."), onPressed: () {}),
-                                                ]
-                                            )
+                                        child: ConstrainedBox(
+                                        constraints: BoxConstraints(maxHeight: 300),
+                                        child: Scrollbar(child: SingleChildScrollView(
+                                            scrollDirection: Axis.vertical,
+                                                    child: Column(
+                                                        mainAxisAlignment: MainAxisAlignment.start,
+                                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                                        mainAxisSize: MainAxisSize.min,
+                                                        children: cardChildren
+                                                    )
+                                            // )
+                                        )))
                                         )
                                     );
                                 }
                             )
                         )),
-                        CurrentLocationLayer(
-                            alignPositionStream: _alignPositionStreamController.stream,
-                            alignPositionOnUpdate: AlignOnUpdate.once
-                        )
                     ]
                 ),
             ),

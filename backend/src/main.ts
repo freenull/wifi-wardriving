@@ -258,12 +258,12 @@ app.get("/users/session", async (req, res) => {
  *               items:
  *                 type: object
  *                 properties:
- *                   key:
- *                     type: string
- *                     description: Unique key identifying the achievement
- *                   unlock_time:
- *                     type: number
- *                     description: Timestamp of when the achievement was unlocked
+ *                   user_id:
+ *                     type: int
+ *                     description: ID of the user
+ *                   submitted_datapoints:
+ *                     type: int
+ *                     description: Number of new datapoints submitted by the user
  *
  *
  *       400:
@@ -497,7 +497,7 @@ app.post("/datapoints", async (req, res) => {
  * /datapoints/{lat}/{long}:
  *   get:
  *     summary: Retrieve data points
- *     description: Retrieve data points. Must be logged in.
+ *     description: Retrieve data points.
  *     parameters:
  *       - in: path
  *         name: lat
@@ -591,6 +591,74 @@ app.get("/datapoints/:lat/:long", async (req, res, next) => {
 
 /**
  * @swagger
+ * /datapoints/{datapointid}:
+ *   get:
+ *     summary: Retrieve a data point by ID
+ *     description: Retrieve a data point by ID.
+ *     parameters:
+ *       - in: path
+ *         name: datapointid
+ *         required: true
+ *         description: ID of the datapoint
+ *         schema:
+ *           type: number
+ *     responses:
+ *       200:
+ *         description: Retrieved
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 datapoint_id:
+ *                   type: integer
+ *                   description: Numeric datapoint ID
+ *                 latitude:
+ *                   type: integer
+ *                   description: Latitude of the datapoint
+ *                 longitude:
+ *                   type: integer
+ *                   description: Longitude of the datapoint
+ *                 ssid:
+ *                   type: string
+ *                   description: SSID
+ *                 bssid:
+ *                   type: integer
+ *                   description: BSSID
+ *                 auth_type:
+ *                   type: string
+ *                   description: Authentication type
+ *                   enum: [none, wep, wpa, wpa2]
+ *                 submitter:
+ *                   type: integer
+ *                   description: Submitter's user ID
+ *       400:
+ *         description: User error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   description: Human readable error message
+ *                 code:
+ *                   type: integer
+ *                   description: Numeric error code
+ *
+ */
+app.get("/datapoints/:datapointid", async (req, res, next) => {
+    var id = Number(req.params.datapointid);
+
+    let resp = await datapoints.retrieveDatapoint(db, req.session as session.SessionData, {
+        datapoint_id: id
+    });
+    res.status(resp.status);
+    res.send(resp.data);
+});
+
+/**
+ * @swagger
  * /datapoints/{datapointid}/comments:
  *   post:
  *     summary: Submit a comment on a datapoint
@@ -651,6 +719,119 @@ app.post("/datapoints/:datapointid/comments", async (req, res) => {
     let resp = await comments.submitComment(db, req.session as session.SessionData, {
         datapoint_id: Number(req.params.datapointid),
         content: req.body.content
+    });
+    res.status(resp.status);
+    res.send(resp.data);
+});
+
+/**
+ * @swagger
+ * /clusters/{lat}/{long}:
+ *   get:
+ *     summary: Retrieve clusters of data points
+ *     description: Retrieve clusters of data points.
+ *     parameters:
+ *       - in: path
+ *         name: lat
+ *         required: true
+ *         description: Latitude of the center of the scan area
+ *         schema:
+ *           type: number
+ *       - in: path
+ *         name: long
+ *         required: true
+ *         description: Longitude of the center of the scan area
+ *         schema:
+ *           type: number
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               radius:
+ *                 type: number
+ *                 required: true
+ *                 description: Radius (in m) of the circular scan area
+ *                 default: 10000
+ *                 max: 20000
+ *               cluster_max_distance:
+ *                 type: number
+ *                 required: true
+ *                 description: Max distance between datapoints to form a cluster
+ *     responses:
+ *       200:
+ *         description: Retrieved
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   latitude:
+ *                     type: integer
+ *                     description: Latitude of the datapoint
+ *                   longitude:
+ *                     type: integer
+ *                     description: Longitude of the datapoint
+ *                   datapoints:
+ *                      type: array
+ *                      description: List of datapoint objects within this cluster
+ *                      items:
+ *                        type: object
+ *                        properties:
+ *                          datapoint_id:
+ *                            type: integer
+ *                            description: Numeric datapoint ID
+ *                          latitude:
+ *                            type: integer
+ *                            description: Latitude of the datapoint
+ *                          longitude:
+ *                            type: integer
+ *                            description: Longitude of the datapoint
+ *                          ssid:
+ *                            type: string
+ *                            description: SSID
+ *                          bssid:
+ *                            type: integer
+ *                            description: BSSID
+ *                          auth_type:
+ *                            type: string
+ *                            description: Authentication type
+ *                            enum: [none, wep, wpa, wpa2]
+ *                          submitter:
+ *                            type: integer
+ *                            description: Submitter's user ID
+ *       400:
+ *         description: User error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   description: Human readable error message
+ *                 code:
+ *                   type: integer
+ *                   description: Numeric error code
+ *
+ */
+app.get("/clusters/:lat/:long", async (req, res, next) => {
+    var lat = Number(req.params.lat);
+    var long = Number(req.params.long);
+    if (Number.isNaN(lat) || Number.isNaN(long)) {
+        next();
+        return;
+    }
+
+    let resp = await datapoints.retrieveClusters(db, req.session as session.SessionData, {
+        latitude: lat,
+        longitude: long,
+        radius: req.body.radius,
+        cluster_max_distance: req.body.cluster_max_distance
     });
     res.status(resp.status);
     res.send(resp.data);

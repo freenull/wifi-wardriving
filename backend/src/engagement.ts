@@ -71,7 +71,7 @@ export async function retrieveLeaderboard(db : pg.PoolClient, sessionData : sess
 
     let entries = [];
     for (let row of result.rows) {
-        entries.push({ userId: row.user_id, submittedDatapoints: row.submitted_datapoints });
+        entries.push({ user_id: row.user_id, submitted_datapoints: row.submitted_datapoints });
     }
 
     return new rest.Response(200, entries);

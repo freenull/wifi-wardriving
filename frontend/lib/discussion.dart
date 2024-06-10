@@ -14,6 +14,7 @@ class DiscussionPage extends StatefulWidget {
 
 class _DiscussionPageState extends State<DiscussionPage> {
     int datapointId;
+    final TextEditingController commentController = TextEditingController();
 
     _DiscussionPageState(this.datapointId);
 
@@ -40,15 +41,23 @@ class _DiscussionPageState extends State<DiscussionPage> {
             bottomSheet = Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                    const TextField(
-                        decoration: InputDecoration(
+                    TextField(
+                        controller: commentController,
+                        decoration: const InputDecoration(
                             border: OutlineInputBorder(),
                             hintText: "Write your comment..."
                         ),
                         maxLines: null
                     ),
                     ElevatedButton(
-                        onPressed: () {},
+                        onPressed: () async {
+                            var success = await Backend().sendComment(ScaffoldMessenger.of(context), datapointId, commentController.value.text);
+                            if (success) {
+                                commentController.clear();
+                                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Comment submitted successfully")));
+                                setState(() {});
+                            }
+                        },
                         style: ElevatedButton.styleFrom( 
                             backgroundColor: Theme.of(context).primaryColor,
                             foregroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -61,12 +70,14 @@ class _DiscussionPageState extends State<DiscussionPage> {
             );
         }
 
+        var datapoint = await Backend().retrieveDatapoint(ScaffoldMessenger.of(context), datapointId);
+
         return Scaffold(
             body: DefaultTabController(
                 length: 2,
                 child: Scaffold(
                     appBar: AppBar(
-                        title: const Text("Comments")
+                        title: const Text("Network")
                     ),
                     body: Padding(
                         padding: const EdgeInsets.only(bottom: 60),
@@ -76,6 +87,14 @@ class _DiscussionPageState extends State<DiscussionPage> {
                                 scrollDirection: Axis.vertical,
                                 child: Column(
                                     children: [
+                                        Text("Network ${datapoint?.ssid ?? "<unknown datapoint>"}"),
+                                        Text("BSSID: ${datapoint?.bssid ?? "<unknown bssid>"}", textAlign: TextAlign.center),
+                                        Text("Seen at: ${datapoint == null ? "<unknown point>" : "${datapoint.position.latitude.toStringAsFixed(6)}, ${datapoint.position.longitude.toStringAsFixed(6)}"}"),
+                                        Text("Security: ${datapoint?.authType ?? "<unknown security>"}"),
+                                        Text("First discovered: ${datapoint?.firstSeen ?? "<unknown>"}"),
+                                        Text("Last discovered: ${datapoint?.lastSeen ?? "<unknown>"}"),
+                                        const Divider(),
+                                        Text("Comments for ${datapoint?.ssid ?? "<unknown datapoint>"}", textAlign: TextAlign.left),
                                         SingleChildScrollView(
                                             physics: const ScrollPhysics(),
                                             scrollDirection: Axis.vertical,
@@ -90,6 +109,12 @@ class _DiscussionPageState extends State<DiscussionPage> {
                 ),
             ),
         );
+    }
+
+    @override
+    void dispose() {
+        commentController.dispose();
+        super.dispose();
     }
 }
 
