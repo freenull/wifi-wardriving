@@ -86,16 +86,6 @@ class _AccountElementState extends State<AccountElement> {
               setState(() {});
             },
             leading: const Icon(Icons.leaderboard)),
-        ListTile(
-            title: const Text("Achievements"),
-            onTap: () async {
-              final nav = Navigator.of(context);
-              nav.pop();
-              await nav.push(MaterialPageRoute(
-                  builder: (context) => const AchievementPage()));
-              setState(() {});
-            },
-            leading: const Icon(Icons.checklist)),
       ]);
     } else {
       return ListView(shrinkWrap: true, children: <Widget>[
@@ -220,7 +210,7 @@ class _MyHomePageState extends State<MyHomePage> {
         print("cluster ====");
 
         var marker = WardrivingDatapointMarker(
-            cluster.position, const Icon(Icons.circle, color: Colors.red));
+            cluster.position, Icon(Icons.place, color: Colors.red.withOpacity(0.7), size: 35));
         for (var datapoint in cluster.datapoints) {
           print(
               "datapoint: ${datapoint.ssid} ${datapoint.position.latitude}, ${datapoint.position.longitude} (markers: ${markers.length})");

@@ -121,6 +121,7 @@ class Backend {
   Backend._ctor();
   factory Backend() => _instance ??= Backend._ctor();
 
+  bool initialized = false;
   int? userId;
   String? username;
   StreamController changeAccountController =
@@ -160,6 +161,12 @@ class Backend {
     return true;
   }
 
+  Future clearUserData(ScaffoldMessengerState msgr) async {
+      username = null;
+      userId = null;
+      await clearSessionCookie(msgr);
+  }
+
   Future<String?> retrieveSessionCookie(ScaffoldMessengerState msgr) async {
     final prefs = await SharedPreferences.getInstance();
     final cookie = prefs.getString("session");
@@ -170,14 +177,13 @@ class Backend {
   }
 
   Future<dynamic> doGet(ScaffoldMessengerState msgr, String resource,
-      {bool requireSession = false}) async {
+      {bool requireSession = false, bool showSnackbar = true}) async {
     final sessionCookie = await retrieveSessionCookie(msgr);
     if (sessionCookie == null && requireSession) return null;
 
     final client = HttpClient();
     client.connectionTimeout = const Duration(seconds: 5);
 
-    print("get: ${url(resource)}");
     final req = await client.getUrl(url(resource));
     if (sessionCookie != null)
       req.cookies.add(Cookie(SESSION_COOKIE_NAME, sessionCookie));
@@ -192,7 +198,7 @@ class Backend {
       if (data != null) {
         final message = data?["message"];
         if (message != null) {
-          sendError(msgr, message.toString());
+          if (showSnackbar) sendError(msgr, message.toString());
           return null;
         }
       }
@@ -258,6 +264,7 @@ class Backend {
 
     final dynamic data =
         await res.transform(utf8.decoder).transform(json.decoder).first;
+
     if (res.statusCode != 200) {
       if (data != null) {
         final message = data?["message"];
@@ -279,11 +286,15 @@ class Backend {
     return data;
   }
 
-  Future<bool> ensureUserDataRetrieved(ScaffoldMessengerState msgr) async {
-    if (username != null) return true;
+  Future<bool> ensureUserDataRetrieved(ScaffoldMessengerState msgr, { bool force = false }) async {
+    if (force && initialized) return true;
+    initialized = true;
 
-    final data = await doGet(msgr, "users/session", requireSession: true);
-    if (data == null) return false;
+    final data = await doGet(msgr, "users/session", requireSession: true, showSnackbar: false);
+    if (data == null) {
+        if (username != null) await clearUserData(msgr);
+        return true;
+    }
 
     username = data["username"].toString();
     userId = data["user_id"];
@@ -308,7 +319,7 @@ class Backend {
     if (data == null) return false;
 
     userId = data["user_id"];
-    await ensureUserDataRetrieved(msgr);
+    await ensureUserDataRetrieved(msgr, force: true);
     changeAccountController.add(this.username);
 
     return true;
@@ -327,7 +338,7 @@ class Backend {
     if (data == null) return false;
 
     userId = data["user_id"];
-    await ensureUserDataRetrieved(msgr);
+    await ensureUserDataRetrieved(msgr, force: true);
     print("fire ev");
     changeAccountController.add(this.username);
 
@@ -437,7 +448,6 @@ class Backend {
       sendError(msgr, "Must be logged in to retrieve own achievements.");
       return null;
     }
-    await ensureUserDataRetrieved(msgr);
 
     final data = await doGet(msgr, "users/$userId/achievements");
     if (data == null) return null;

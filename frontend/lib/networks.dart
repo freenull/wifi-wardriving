@@ -81,7 +81,7 @@ class _NetworksPageState extends State<NetworksPage> {
                           const FractionallySizedBox(
                               widthFactor: 0.8,
                               child: Text(
-                                  "You may unselect networks that you do not wish to send data about.",
+                                  "You may unselect networks that you do not wish to send data about.\n",
                                   textAlign: TextAlign.center)),
                           SingleChildScrollView(
                               physics: const ScrollPhysics(),
@@ -154,7 +154,6 @@ class _NetworksListState extends State<NetworksList> {
 
   @override
   Widget build(BuildContext context) {
-    print("building");
     return FutureBuilder<Widget>(
         future: asyncBuild(context),
         builder: (BuildContext context, AsyncSnapshot<Widget> snapshot) {
@@ -165,7 +164,6 @@ class _NetworksListState extends State<NetworksList> {
   }
 
   Future<bool> scan() async {
-    print("SCAN");
     if (CanStartScan.yes !=
         await WiFiScan.instance.canStartScan(askPermissions: true))
       return false;
@@ -179,6 +177,7 @@ class _NetworksListState extends State<NetworksList> {
     for (final ap in newAccessPoints) {
       _accessPoints?.add(ToggleableAccessPoint(ap));
     }
+    _accessPoints?.sort((a, b) => b.ap.level.compareTo(a.ap.level));
 
     return true;
   }
@@ -218,7 +217,14 @@ class _NetworksListState extends State<NetworksList> {
       if (ap.alreadySent) continue;
       var caps = parseCapabilities(ap.ap.capabilities);
 
-      elems.add(Row(children: <Widget>[
+      var name = ap.ap.ssid == "" ? "<${ap.ap.bssid}>" : ap.ap.ssid;
+      var nameStyle = TextStyle(fontStyle: ap.ap.ssid == "" ? FontStyle.italic : FontStyle.normal);
+
+      var freqType = ap.ap.frequency > 5000 ? "5GHz" : "2.4GHz";
+
+      elems.add(Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(children: <Widget>[
         Checkbox(
             value: ap.enabled,
             onChanged: (value) {
@@ -228,11 +234,25 @@ class _NetworksListState extends State<NetworksList> {
         Flexible(
             child:
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(ap.ap.ssid),
-          Text(caps.join(", ")),
+          Text.rich(TextSpan(children: <TextSpan>[
+            const TextSpan(text: "Network: ", style: TextStyle(fontWeight: FontWeight.bold)),
+            TextSpan(text: name, style: nameStyle)
+          ])),
+          Text.rich(TextSpan(children: <TextSpan>[
+            const TextSpan(text: "Auth: ", style: TextStyle(fontWeight: FontWeight.bold)),
+            TextSpan(text: _NetworksPageState.accessPointAuthType(ap.ap).toUpperCase())
+          ])),
+          Text.rich(TextSpan(children: <TextSpan>[
+            const TextSpan(text: "Frequency: ", style: TextStyle(fontWeight: FontWeight.bold)),
+            TextSpan(text: freqType)
+          ])),
+          Text.rich(TextSpan(children: <TextSpan>[
+            const TextSpan(text: "Strength: ", style: TextStyle(fontWeight: FontWeight.bold)),
+            TextSpan(text: "${ap.ap.level}dBm")
+          ])),
           // Text("freq: ${ap.frequency}, chan: ${ap.channelWidth}"),
         ]))
-      ]));
+      ])));
     }
 
     return ListView(
