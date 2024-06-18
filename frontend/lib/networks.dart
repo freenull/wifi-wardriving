@@ -11,10 +11,12 @@ import "backend.dart";
 class ToggleableAccessPoint {
     WiFiAccessPoint ap;
     bool enabled;
+    bool alreadySent;
 
     ToggleableAccessPoint(WiFiAccessPoint ap)
     : this.ap = ap
-    , enabled = true;
+    , enabled = true
+    , alreadySent = false;
 }
 
 class WardrivingDatapointMarker extends Marker {
@@ -25,13 +27,23 @@ class WardrivingDatapointMarker extends Marker {
     , super(point: point, child: child);
 }
 
-class NetworksPage extends StatelessWidget {
-  NetworksPage(MapController mapController, {super.key})
+class NetworksPage extends StatefulWidget {
+    final MapController mapController;
+    const NetworksPage(MapController mapController, {super.key})
+    : this.mapController = mapController;
+
+    @override
+    State<NetworksPage> createState() => _NetworksPageState(mapController);
+}
+
+class _NetworksPageState extends State<NetworksPage> {
+  _NetworksPageState(MapController mapController)
     : accessPoints = []
     , mapController = mapController;
 
   final List<ToggleableAccessPoint> accessPoints;
   final MapController mapController;
+  bool submitButtonEnabled = true;
 
   static String accessPointAuthType(WiFiAccessPoint ap) {
     if (ap.capabilities.contains("[WPA2-")) return "wpa2";
@@ -63,22 +75,31 @@ class NetworksPage extends StatelessWidget {
           bottomSheet:
               ElevatedButton(
                   child: const Text("Submit"),
-                  onPressed: () async {
+                  onPressed: submitButtonEnabled ? (() async {
                     // var pos = await mapController.myLocation();
                     // print("lat: ${pos.latitude}");
                     // print("long: ${pos.longitude}");
-                    for (var ap in accessPoints) {
-                        if (!ap.enabled) continue;
+                    setState(() { submitButtonEnabled = false; });
 
-                        var currentPosition = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
-                        await Backend().sendDatapoint(
-                            ScaffoldMessenger.of(context),
-                            accessPointToDatapoint(LatLng(currentPosition.latitude, currentPosition.longitude), ap.ap)
-                        );
+                    try {
+                        for (var ap in accessPoints) {
+                            if (!ap.enabled) continue;
+
+                            var currentPosition = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+                            var result = await Backend().sendDatapoint(
+                                ScaffoldMessenger.of(context),
+                                accessPointToDatapoint(LatLng(currentPosition.latitude, currentPosition.longitude), ap.ap)
+                            );
+                            if (result) {
+                                setState(() { ap.alreadySent = true; });
+                            }
+                        }
+                    } finally {
+                        setState(() { submitButtonEnabled = true; });
                     }
 
                     Navigator.of(context).pop();
-                  },
+                  }) : null,
                   style: ElevatedButton.styleFrom( 
                       backgroundColor: Theme.of(context).primaryColor,
                       foregroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -164,6 +185,7 @@ class _NetworksListState extends State<NetworksList> {
 
         var elems = <Widget>[];
         for (final ap in _accessPoints!) {
+            if (ap.alreadySent) continue;
             var caps = parseCapabilities(ap.ap.capabilities);
 
             elems.add(Row(

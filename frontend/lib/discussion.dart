@@ -87,14 +87,14 @@ class _DiscussionPageState extends State<DiscussionPage> {
                                 scrollDirection: Axis.vertical,
                                 child: Column(
                                     children: [
-                                        Text("Network ${datapoint?.ssid ?? "<unknown datapoint>"}"),
+                                        Text("Network ${datapoint?.displayName() ?? "<unknown datapoint>"}"),
                                         Text("BSSID: ${datapoint?.bssid ?? "<unknown bssid>"}", textAlign: TextAlign.center),
                                         Text("Seen at: ${datapoint == null ? "<unknown point>" : "${datapoint.position.latitude.toStringAsFixed(6)}, ${datapoint.position.longitude.toStringAsFixed(6)}"}"),
                                         Text("Security: ${datapoint?.authType ?? "<unknown security>"}"),
                                         Text("First discovered: ${datapoint?.firstSeen ?? "<unknown>"}"),
                                         Text("Last discovered: ${datapoint?.lastSeen ?? "<unknown>"}"),
                                         const Divider(),
-                                        Text("Comments for ${datapoint?.ssid ?? "<unknown datapoint>"}", textAlign: TextAlign.left),
+                                        Text("Comments for ${datapoint?.displayName() ?? "<unknown datapoint>"}", textAlign: TextAlign.left),
                                         SingleChildScrollView(
                                             physics: const ScrollPhysics(),
                                             scrollDirection: Axis.vertical,

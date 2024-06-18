@@ -60,6 +60,11 @@ class Datapoint {
     , this.firstSeen = null
     , this.lastSeen = null;
 
+    String displayName() {
+        if (ssid == "") return "<anonymous>";
+        return ssid;
+    }
+
     int bssidAsNumber() {
         return int.parse(bssid.split(":").join(""), radix: 16);
     }

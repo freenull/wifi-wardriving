@@ -304,17 +304,24 @@ class _MyHomePageState extends State<MyHomePage> {
                                         cardChildren.add(Text("${datapointMarker.datapoints.length} networks"));
                                     }
                                     for (var datapoint in datapointMarker.datapoints) {
-                                        var networkName = datapoint.ssid;
+                                        var networkName = datapoint.displayName();
 
                                         for (var otherDatapoint in datapointMarker.datapoints) {
-                                            if (otherDatapoint.ssid == datapoint.ssid && otherDatapoint.bssid != datapoint.bssid) {
-                                                var deviceMac = datapoint.bssid.substring(9).split(":");
-                                                var otherDeviceMac = otherDatapoint.bssid.substring(9).split(":");
+                                            if (datapoint.ssid == "" && otherDatapoint.bssid != datapoint.bssid) {
+                                                networkName = "<${datapoint.bssid}>";
+                                            }
+                                            else if (otherDatapoint.displayName() == datapoint.displayName() && otherDatapoint.bssid != datapoint.bssid) {
+                                                var deviceMac = datapoint.bssid.split(":");
+                                                var otherDeviceMac = otherDatapoint.bssid.split(":");
 
                                                 var bssidDetail = "";
-                                                if (deviceMac[0] != otherDeviceMac[0]) bssidDetail = deviceMac.join(":");
-                                                else if (deviceMac[1] != otherDeviceMac[1]) bssidDetail = "::${deviceMac[1]}:${deviceMac[2]}";
-                                                else if (deviceMac[2] != otherDeviceMac[2]) bssidDetail = "::${deviceMac[2]}";
+                                                var idxs = [ 0, 1, 2, 3, 4, 5 ];
+                                                for (var idx in idxs) {
+                                                    if (deviceMac[idx] != otherDeviceMac[idx]) bssidDetail = deviceMac.sublist(idx).join(":");
+                                                }
+                                                if (bssidDetail.length < 6 * 2 + 5) {
+                                                    bssidDetail = "::$bssidDetail";
+                                                }
 
                                                 networkName = "${datapoint.ssid} (${bssidDetail})";
                                                 break;
@@ -322,7 +329,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                         }
 
                                         cardChildren.add(TextButton.icon(
-                                            icon: Icon(Icons.network_wifi), label: Text(networkName), onPressed: () async {
+                                            icon: Icon(Icons.network_wifi_3_bar), label: Text(networkName), onPressed: () async {
                                                 await Navigator.of(context).push(MaterialPageRoute(builder: (context) => DiscussionPage(datapoint.id!)));
                                                 setState(() {});
                                             }
