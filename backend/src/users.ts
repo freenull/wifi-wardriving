@@ -1,3 +1,8 @@
+/* Authors:
+ * - Dominik Banaszak
+ * - Jakub Utko
+ */
+
 import pg from "pg";
 import crypto from "node:crypto";
 import session from "express-session";

@@ -1,3 +1,9 @@
+/* Authors:
+ * - Dominik Banaszak
+ * - Jakub Utko
+ * - Oliwier Strachota
+ */
+
 import http from "http";
 import express from "express";
 import session from "express-session";

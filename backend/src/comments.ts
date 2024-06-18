@@ -1,3 +1,7 @@
+/* Authors:
+ * - Jakub Utko
+ */
+
 import pg from "pg";
 import * as rest from "./rest";
 import * as engagement from "./engagement";

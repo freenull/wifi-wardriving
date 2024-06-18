@@ -56,7 +56,25 @@ To build the project, pull dependencies first:
 npm install
 ```
 
-Then run with the `start` script:
+PostgreSQL must be running. To initialize the database, run the `init.sql` file with:
+```sh
+psql -U postgres -v "password='PASSWORD'" -f init.sql
+```
+
+Replace `PASSWORD` with the desired password for the new dedicated database user `wifiwardriving`.
+
+To run the server, you must place an `.env` file in the `backend` directory with the following contents:
+```
+PGHOST=localhost
+PGUSER=wifiwardriving
+PGPASSWORD=
+PGDATABASE=wifiwardriving
+SESSION_SECRET=
+```
+
+Fill in the `PGPASSWORD` field with the password passed to `psql` in the previous command. Fill in `SESSION_SECRET` with a randomly generated password. This password will be used to encrypt session data.
+
+Finally, run with the `start` script:
 
 ```sh
 npm run start

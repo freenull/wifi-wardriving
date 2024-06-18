@@ -1,3 +1,7 @@
+/* Authors:
+ * - Dominik Banaszak
+ */
+
 export enum ErrorCode {
     MissingParameter = 0,
     UserRegistered = 1,

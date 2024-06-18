@@ -1,3 +1,7 @@
+/* Authors:
+ * - Dominik Banaszak
+ */
+
 import "package:flutter/material.dart";
 import "backend.dart";
 import "main.dart";

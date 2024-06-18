@@ -1,3 +1,8 @@
+/* Authors:
+ * - Dominik Banaszak
+ * - Jakub Utko
+ */
+
 import pg from "pg";
 import session from "express-session";
 

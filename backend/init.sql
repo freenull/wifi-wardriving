@@ -1,3 +1,6 @@
+-- Authors:
+-- - Jakub Utko
+
 -- run like this:
 --     psql -U postgres -v "password='...'" -f init.sql
 drop database if exists wifiwardriving;

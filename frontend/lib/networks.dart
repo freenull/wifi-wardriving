@@ -1,3 +1,7 @@
+/* Authors:
+ * - Dominik Banaszak
+ */
+
 import "package:flutter/material.dart";
 import "package:flutter/widgets.dart";
 import "package:wifi_scan/wifi_scan.dart";
