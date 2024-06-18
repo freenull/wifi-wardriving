@@ -1,13 +1,13 @@
 import http from "http";
 import express from "express";
 import session from "express-session";
-import pg from 'pg'
+import pg from "pg";
 import connectPgSimple from "connect-pg-simple";
-import crypto from 'crypto';
-import swaggerJsDoc from 'swagger-jsdoc';
-import swaggerUiExpress from 'swagger-ui-express';
-import path from 'path';
-import url from 'url';
+import crypto from "crypto";
+import swaggerJsDoc from "swagger-jsdoc";
+import swaggerUiExpress from "swagger-ui-express";
+import path from "path";
+import url from "url";
 
 import * as rest from "./rest";
 import * as users from "./users";
@@ -23,10 +23,10 @@ const swaggerSpec = swaggerJsDoc({
         openapi: "3.0.0",
         info: {
             title: "API for WiFi Wardriving",
-            version: "1.0.0"
+            version: "1.0.0",
         },
     },
-    apis: [ "**/*.ts" ]
+    apis: ["**/*.ts"],
 });
 
 const pgSessionStore = connectPgSimple(session);
@@ -36,34 +36,35 @@ const dbPool = new pg.Pool({
     user: process.env.PGUSER,
     password: process.env.PGPASSWORD,
     database: process.env.PGDATABASE,
-    max: 2
+    max: 2,
 });
 const db = await dbPool.connect();
 
 const app = express();
 
 app.use(express.json());
-app.use(session({
-    name: "wifi-wardriving-session-cookieid",
-    secret: process.env.SESSION_SECRET,
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-        expires: null
-    },
-    store: new pgSessionStore({
-        createTableIfMissing: true,
-        pool: dbPool
-    })
-}));
+app.use(
+    session({
+        name: "wifi-wardriving-session-cookieid",
+        secret: process.env.SESSION_SECRET,
+        resave: false,
+        saveUninitialized: false,
+        cookie: {
+            expires: null,
+        },
+        store: new pgSessionStore({
+            createTableIfMissing: true,
+            pool: dbPool,
+        }),
+    }),
+);
 
 app.use("/api", swaggerUiExpress.serve, swaggerUiExpress.setup(swaggerSpec));
 
 app.get("/", (req, res) => {
     res.setHeader("Content-Type", "application/json");
-    res.send("{ \"ok\": true }");
+    res.send('{ "ok": true }');
 });
-
 
 /**
  * @swagger
@@ -115,7 +116,11 @@ app.get("/", (req, res) => {
  *
  */
 app.post("/users", async (req, res) => {
-    let resp = await users.registerUser(db, req.session as session.SessionData, req.body);
+    let resp = await users.registerUser(
+        db,
+        req.session as session.SessionData,
+        req.body,
+    );
     res.status(resp.status);
     res.send(resp.data);
 });
@@ -179,7 +184,7 @@ app.post("/users/:username", async (req, res) => {
     let resp = await users.loginUser(db, req.session as session.SessionData, {
         username: req.params.username,
         password: req.body.password,
-        remember_me: req.body.remember_me
+        remember_me: req.body.remember_me,
     });
     res.status(resp.status);
     res.send(resp.data);
@@ -282,10 +287,20 @@ app.get("/users/session", async (req, res) => {
  *
  */
 app.get("/users/leaderboard", async (req, res) => {
-    let resp = await engagement.retrieveLeaderboard(db, req.session as session.SessionData, { 
-        limit: req.query?.limit !== undefined ? Number(req.query?.limit) : undefined,
-        start: req.query?.start !== undefined ? Number(req.query?.start) : undefined
-    });
+    let resp = await engagement.retrieveLeaderboard(
+        db,
+        req.session as session.SessionData,
+        {
+            limit:
+                req.query?.limit !== undefined
+                    ? Number(req.query?.limit)
+                    : undefined,
+            start:
+                req.query?.start !== undefined
+                    ? Number(req.query?.start)
+                    : undefined,
+        },
+    );
     res.status(resp.status);
     res.send(resp.data);
 });
@@ -331,7 +346,9 @@ app.get("/users/leaderboard", async (req, res) => {
  *
  */
 app.get("/users/:userid", async (req, res) => {
-    let resp = await users.userData(db, req.session as session.SessionData, { user_id: Number(req.params.userid) });
+    let resp = await users.userData(db, req.session as session.SessionData, {
+        user_id: Number(req.params.userid),
+    });
     res.status(resp.status);
     res.send(resp.data);
 });
@@ -384,7 +401,11 @@ app.get("/users/:userid", async (req, res) => {
  *
  */
 app.get("/users/:userid/achievements", async (req, res) => {
-    let resp = await engagement.retrieveAchievements(db, req.session as session.SessionData, { user_id: Number(req.params.userid) });
+    let resp = await engagement.retrieveAchievements(
+        db,
+        req.session as session.SessionData,
+        { user_id: Number(req.params.userid) },
+    );
     res.status(resp.status);
     res.send(resp.data);
 });
@@ -420,7 +441,12 @@ app.get("/users/:userid/achievements", async (req, res) => {
  */
 app.delete("/users/session", async (req, res) => {
     let resp = await users.logoutUser(db, req.session as session.SessionData);
-    if (resp.destroySessionData) await new Promise<void>((resolve) => req.session.destroy(() => { resolve(); }));
+    if (resp.destroySessionData)
+        await new Promise<void>((resolve) =>
+            req.session.destroy(() => {
+                resolve();
+            }),
+        );
     res.status(resp.status);
     res.send(resp.data);
 });
@@ -487,7 +513,11 @@ app.delete("/users/session", async (req, res) => {
  *
  */
 app.post("/datapoints", async (req, res) => {
-    let resp = await datapoints.submitDatapoint(db, req.session as session.SessionData, req.body);
+    let resp = await datapoints.submitDatapoint(
+        db,
+        req.session as session.SessionData,
+        req.body,
+    );
     res.status(resp.status);
     res.send(resp.data);
 });
@@ -580,11 +610,15 @@ app.get("/datapoints/:lat/:long", async (req, res, next) => {
         return;
     }
 
-    let resp = await datapoints.retrieveDatapoints(db, req.session as session.SessionData, {
-        latitude: lat,
-        longitude: long,
-        radius: req.body.radius
-    });
+    let resp = await datapoints.retrieveDatapoints(
+        db,
+        req.session as session.SessionData,
+        {
+            latitude: lat,
+            longitude: long,
+            radius: req.body.radius,
+        },
+    );
     res.status(resp.status);
     res.send(resp.data);
 });
@@ -650,9 +684,13 @@ app.get("/datapoints/:lat/:long", async (req, res, next) => {
 app.get("/datapoints/:datapointid", async (req, res, next) => {
     var id = Number(req.params.datapointid);
 
-    let resp = await datapoints.retrieveDatapoint(db, req.session as session.SessionData, {
-        datapoint_id: id
-    });
+    let resp = await datapoints.retrieveDatapoint(
+        db,
+        req.session as session.SessionData,
+        {
+            datapoint_id: id,
+        },
+    );
     res.status(resp.status);
     res.send(resp.data);
 });
@@ -716,10 +754,14 @@ app.get("/datapoints/:datapointid", async (req, res, next) => {
  *
  */
 app.post("/datapoints/:datapointid/comments", async (req, res) => {
-    let resp = await comments.submitComment(db, req.session as session.SessionData, {
-        datapoint_id: Number(req.params.datapointid),
-        content: req.body.content
-    });
+    let resp = await comments.submitComment(
+        db,
+        req.session as session.SessionData,
+        {
+            datapoint_id: Number(req.params.datapointid),
+            content: req.body.content,
+        },
+    );
     res.status(resp.status);
     res.send(resp.data);
 });
@@ -827,12 +869,16 @@ app.get("/clusters/:lat/:long", async (req, res, next) => {
         return;
     }
 
-    let resp = await datapoints.retrieveClusters(db, req.session as session.SessionData, {
-        latitude: lat,
-        longitude: long,
-        radius: req.body.radius,
-        cluster_max_distance: req.body.cluster_max_distance
-    });
+    let resp = await datapoints.retrieveClusters(
+        db,
+        req.session as session.SessionData,
+        {
+            latitude: lat,
+            longitude: long,
+            radius: req.body.radius,
+            cluster_max_distance: req.body.cluster_max_distance,
+        },
+    );
     res.status(resp.status);
     res.send(resp.data);
 });
@@ -882,9 +928,13 @@ app.get("/clusters/:lat/:long", async (req, res, next) => {
  *
  */
 app.get("/comments/:commentid", async (req, res) => {
-    let resp = await comments.retrieveComment(db, req.session as session.SessionData, {
-        comment_id: Number(req.params.commentid)
-    });
+    let resp = await comments.retrieveComment(
+        db,
+        req.session as session.SessionData,
+        {
+            comment_id: Number(req.params.commentid),
+        },
+    );
     res.status(resp.status);
     res.send(resp.data);
 });
@@ -937,9 +987,13 @@ app.get("/comments/:commentid", async (req, res) => {
  *
  */
 app.get("/datapoints/:datapointid/comments", async (req, res) => {
-    let resp = await comments.retrieveAllComments(db, req.session as session.SessionData, {
-        datapoint_id: Number(req.params.datapointid)
-    });
+    let resp = await comments.retrieveAllComments(
+        db,
+        req.session as session.SessionData,
+        {
+            datapoint_id: Number(req.params.datapointid),
+        },
+    );
     res.status(resp.status);
     res.send(resp.data);
 });
