@@ -34,22 +34,23 @@ class LoginPage extends StatelessWidget {
 }
 
 class LoginCard extends StatefulWidget {
-    const LoginCard({super.key});
+  const LoginCard({super.key});
 
-    @override
-    State<LoginCard> createState() => _LoginCardState();
+  @override
+  State<LoginCard> createState() => _LoginCardState();
 }
 
 class _LoginCardState extends State<LoginCard> {
-    final usernameTextField = TextEditingController();
-    final passwordTextField = TextEditingController();
-    bool passwordFieldVisible = false;
-    var rememberMe = false;
+  final usernameTextField = TextEditingController();
+  final passwordTextField = TextEditingController();
+  bool passwordFieldVisible = false;
+  var rememberMe = false;
 
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: SingleChildScrollView(child: Card(
+        child: SingleChildScrollView(
+      child: Card(
         margin: EdgeInsets.all(20.0),
         child: Padding(
           padding: EdgeInsets.all(16.0),
@@ -65,31 +66,38 @@ class _LoginCardState extends State<LoginCard> {
                 decoration: InputDecoration(
                     labelText: 'Password',
                     suffixIcon: IconButton(
-                        icon: Icon(passwordFieldVisible ? Icons.visibility : Icons.visibility_off, color: Theme.of(context).primaryColorDark),
+                        icon: Icon(
+                            passwordFieldVisible
+                                ? Icons.visibility
+                                : Icons.visibility_off,
+                            color: Theme.of(context).primaryColorDark),
                         onPressed: () => setState(() {
-                            passwordFieldVisible = !passwordFieldVisible;
-                        })
-                    )
-                ),
+                              passwordFieldVisible = !passwordFieldVisible;
+                            }))),
                 controller: passwordTextField,
                 obscureText: !passwordFieldVisible,
               ),
               const SizedBox(height: 20),
-            CheckboxListTile(
-                title: const Text("Remember me"),
-                value: rememberMe,
-                onChanged: (state) => {
-                    setState(() { rememberMe = state ?? false; })
-                }
-            ),
-                  ElevatedButton(
-                    onPressed: () async {
-                        final nav = Navigator.of(context);
-                        final result = await Backend().loginAccount(ScaffoldMessenger.of(context), usernameTextField.text, passwordTextField.text, rememberMe);
-                        if (result) nav.pop();
-                    },
-                    child: const Text('Login'),
-                  ),
+              CheckboxListTile(
+                  title: const Text("Remember me"),
+                  value: rememberMe,
+                  onChanged: (state) => {
+                        setState(() {
+                          rememberMe = state ?? false;
+                        })
+                      }),
+              ElevatedButton(
+                onPressed: () async {
+                  final nav = Navigator.of(context);
+                  final result = await Backend().loginAccount(
+                      ScaffoldMessenger.of(context),
+                      usernameTextField.text,
+                      passwordTextField.text,
+                      rememberMe);
+                  if (result) nav.pop();
+                },
+                child: const Text('Login'),
+              ),
             ],
           ),
         ),
@@ -99,24 +107,25 @@ class _LoginCardState extends State<LoginCard> {
 }
 
 class RegisterCard extends StatefulWidget {
-    const RegisterCard({super.key});
+  const RegisterCard({super.key});
 
-    @override
-    State<RegisterCard> createState() => _RegisterCardState();
+  @override
+  State<RegisterCard> createState() => _RegisterCardState();
 }
 
 class _RegisterCardState extends State<RegisterCard> {
-    final usernameTextField = TextEditingController();
-    final passwordTextField = TextEditingController();
-    final repeatPasswordTextField = TextEditingController();
-    bool passwordFieldVisible = false;
-    bool repeatPasswordFieldVisible = false;
-    var rememberMe = false;
+  final usernameTextField = TextEditingController();
+  final passwordTextField = TextEditingController();
+  final repeatPasswordTextField = TextEditingController();
+  bool passwordFieldVisible = false;
+  bool repeatPasswordFieldVisible = false;
+  var rememberMe = false;
 
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: SingleChildScrollView(child: Card(
+        child: SingleChildScrollView(
+      child: Card(
         margin: EdgeInsets.all(20.0),
         child: Padding(
           padding: EdgeInsets.all(16.0),
@@ -132,12 +141,14 @@ class _RegisterCardState extends State<RegisterCard> {
                 decoration: InputDecoration(
                     labelText: 'Password',
                     suffixIcon: IconButton(
-                        icon: Icon(passwordFieldVisible ? Icons.visibility : Icons.visibility_off, color: Theme.of(context).primaryColorDark),
+                        icon: Icon(
+                            passwordFieldVisible
+                                ? Icons.visibility
+                                : Icons.visibility_off,
+                            color: Theme.of(context).primaryColorDark),
                         onPressed: () => setState(() {
-                            passwordFieldVisible = !passwordFieldVisible;
-                        })
-                    )
-                ),
+                              passwordFieldVisible = !passwordFieldVisible;
+                            }))),
                 controller: passwordTextField,
                 obscureText: !passwordFieldVisible,
               ),
@@ -146,37 +157,44 @@ class _RegisterCardState extends State<RegisterCard> {
                 decoration: InputDecoration(
                     labelText: 'Repeat password',
                     suffixIcon: IconButton(
-                        icon: Icon(repeatPasswordFieldVisible ? Icons.visibility : Icons.visibility_off, color: Theme.of(context).primaryColorDark),
+                        icon: Icon(
+                            repeatPasswordFieldVisible
+                                ? Icons.visibility
+                                : Icons.visibility_off,
+                            color: Theme.of(context).primaryColorDark),
                         onPressed: () => setState(() {
-                            repeatPasswordFieldVisible = !repeatPasswordFieldVisible;
-                        })
-                    )
-                ),
+                              repeatPasswordFieldVisible =
+                                  !repeatPasswordFieldVisible;
+                            }))),
                 controller: repeatPasswordTextField,
                 obscureText: !repeatPasswordFieldVisible,
               ),
               const SizedBox(height: 20),
-            CheckboxListTile(
-                title: const Text("Remember me"),
-                value: rememberMe,
-                onChanged: (state) => {
-                    setState(() {
-                        rememberMe = state ?? false;
-                    })
-                }
-            ),
-                  ElevatedButton(
-                    onPressed: () async {
-                        if (passwordTextField.text != repeatPasswordTextField.text) {
-                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Passwords don't match")));
-                            return;
-                        }
-                        final nav = Navigator.of(context);
-                        final result = await Backend().registerAccount(ScaffoldMessenger.of(context), usernameTextField.text, passwordTextField.text, rememberMe);
-                        if (result) nav.pop();
-                    },
-                    child: const Text('Register'),
-                  ),
+              CheckboxListTile(
+                  title: const Text("Remember me"),
+                  value: rememberMe,
+                  onChanged: (state) => {
+                        setState(() {
+                          rememberMe = state ?? false;
+                        })
+                      }),
+              ElevatedButton(
+                onPressed: () async {
+                  if (passwordTextField.text != repeatPasswordTextField.text) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text("Passwords don't match")));
+                    return;
+                  }
+                  final nav = Navigator.of(context);
+                  final result = await Backend().registerAccount(
+                      ScaffoldMessenger.of(context),
+                      usernameTextField.text,
+                      passwordTextField.text,
+                      rememberMe);
+                  if (result) nav.pop();
+                },
+                child: const Text('Register'),
+              ),
             ],
           ),
         ),
